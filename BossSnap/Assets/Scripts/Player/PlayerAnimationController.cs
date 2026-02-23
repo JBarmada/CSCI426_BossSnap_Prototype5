@@ -6,15 +6,17 @@ namespace BossSnap.Player
     public class PlayerAnimationController : MonoBehaviour
     {
         private Animator animator;
+        private Rigidbody rb;
         private PlayerController playerController;
 
-        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
+        private static readonly int IsSwitchingHash = Animator.StringToHash("isSwitching");
         private static readonly int IsJumpingHash = Animator.StringToHash("IsJumping");
         private static readonly int JumpTriggerHash = Animator.StringToHash("Jump");
 
         private void Awake()
         {
             animator = GetComponent<Animator>();
+            rb = GetComponent<Rigidbody>();
             playerController = GetComponent<PlayerController>();
         }
 
@@ -22,10 +24,17 @@ namespace BossSnap.Player
         {
             if (animator == null || playerController == null) return;
 
-            bool isMoving = playerController.IsTransitioning;
-            bool isJumping = playerController.CurrentRealm == RealmState.TwoD;
+            bool isSwitching = playerController.CurrentRealm == RealmState.ThreeD && playerController.IsTransitioning;
+            bool isJumping = false;
 
-            animator.SetBool(IsMovingHash, isMoving);
+            if (playerController.CurrentRealm == RealmState.TwoD && rb != null)
+            {
+                bool aboveGround = transform.position.y > 0.05f;
+                bool verticalMotion = Mathf.Abs(rb.linearVelocity.y) > 0.05f;
+                isJumping = aboveGround || verticalMotion;
+            }
+
+            animator.SetBool(IsSwitchingHash, isSwitching);
             animator.SetBool(IsJumpingHash, isJumping);
         }
 
@@ -33,6 +42,7 @@ namespace BossSnap.Player
         {
             if (animator != null)
             {
+                animator.ResetTrigger(JumpTriggerHash);
                 animator.SetTrigger(JumpTriggerHash);
             }
         }

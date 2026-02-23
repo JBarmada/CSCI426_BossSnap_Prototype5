@@ -15,9 +15,10 @@ namespace BossSnap.Managers
         [SerializeField] private Vector3 twoDRotation = new Vector3(0f, 90f, 0f);
 
         [Header("Transition Settings")]
-        [SerializeField] private bool useSmooth = false;
+        [SerializeField] private bool useSmooth = true;
         [SerializeField] private float transitionSpeed = 5f;
 
+        private ScreenShake screenShake;
         private Camera mainCamera;
         private bool isTransitioning = false;
         private Vector3 targetPosition;
@@ -39,14 +40,16 @@ namespace BossSnap.Managers
             {
                 mainCamera = GetComponent<Camera>();
             }
+            if (mainCamera != null)
+                screenShake = mainCamera.GetComponent<ScreenShake>();
         }
 
         private void Start()
         {
-            SnapToRealm(RealmState.ThreeD);
+            SnapToRealm(RealmState.ThreeD, true);
         }
 
-        public void SnapToRealm(RealmState realm)
+        public void SnapToRealm(RealmState realm, bool instant = false)
         {
             if (mainCamera == null) return;
 
@@ -61,12 +64,13 @@ namespace BossSnap.Managers
                 targetRotation = Quaternion.Euler(twoDRotation);
             }
 
-            if (useSmooth)
+            if (useSmooth && !instant)
             {
                 isTransitioning = true;
             }
             else
             {
+                isTransitioning = false;
                 mainCamera.transform.position = targetPosition;
                 mainCamera.transform.rotation = targetRotation;
             }
@@ -74,18 +78,43 @@ namespace BossSnap.Managers
 
         private void LateUpdate()
         {
-            if (isTransitioning && mainCamera != null)
+            if (mainCamera == null) return;
+            Vector3 basePosition = mainCamera.transform.position;
+            Quaternion baseRotation = mainCamera.transform.rotation;
+            if (isTransitioning)
             {
-                mainCamera.transform.position = Vector3.Lerp(mainCamera.transform.position, targetPosition, Time.deltaTime * transitionSpeed);
-                mainCamera.transform.rotation = Quaternion.Slerp(mainCamera.transform.rotation, targetRotation, Time.deltaTime * transitionSpeed);
+                basePosition = Vector3.Lerp(
+                    mainCamera.transform.position,
+                    targetPosition,
+                    Time.deltaTime * transitionSpeed
+                );
 
-                if (Vector3.Distance(mainCamera.transform.position, targetPosition) < 0.01f)
+                baseRotation = Quaternion.Slerp(
+                    mainCamera.transform.rotation,
+                    targetRotation,
+                    Time.deltaTime * transitionSpeed
+                );
+
+                if (Vector3.Distance(basePosition, targetPosition) < 0.01f)
                 {
-                    mainCamera.transform.position = targetPosition;
-                    mainCamera.transform.rotation = targetRotation;
+                    basePosition = targetPosition;
+                    baseRotation = targetRotation;
                     isTransitioning = false;
                 }
             }
+            else
+            {
+                basePosition = targetPosition;
+                baseRotation = targetRotation;
+            }
+
+            // 🔥 APPLY SHAKE OFFSET HERE
+            Vector3 shakeOffset = Vector3.zero;
+            if (screenShake != null)
+                shakeOffset = screenShake.CurrentOffset;
+
+            mainCamera.transform.position = basePosition + shakeOffset;
+            mainCamera.transform.rotation = baseRotation;
         }
     }
 }
