@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &4459857506338980928
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5065610848275623576, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_UseGravity
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5065610848275623576, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_IsKinematic
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.20602
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.44227
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.23809
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5127060979760808818, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6744635209607555801, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      propertyPath: m_Name
+      value: FallingRock
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 7532330196277339885, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6744635209607555801, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4540656978999450053}
+  m_SourcePrefab: {fileID: 100100000, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+--- !u!1 &6952811500514963097 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6744635209607555801, guid: ba72943597c819141bdf53abb1af2e6c, type: 3}
+  m_PrefabInstance: {fileID: 4459857506338980928}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4540656978999450053
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6952811500514963097}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5073fc69a5c42e44a090f891dc580a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossSnap.Boss.FallingRock
+  fallSpeed: 15
+  rotationSpeed: 500
+  destroyY: -5
+  damageAmount: 20
+  impactVFX: {fileID: 0}
+  impactClip: {fileID: 0}
+  whistleClip: {fileID: 0}
+  impactShakeStrength: 0.2
+  impactShakeDuration: 0.15

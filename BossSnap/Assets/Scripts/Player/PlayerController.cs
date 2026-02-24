@@ -38,24 +38,37 @@ namespace BossSnap.Player
         [SerializeField] private AudioClip laneSwitchSfx;
         [SerializeField] [Range(0f, 1f)] private float laneSwitchSfxVolume = 1f;
 
+        [Header("Health System")]
+        [SerializeField] private float maxHealth = 100f;
+        private float currentHealth;
+        private bool isDead = false;
+
         private Rigidbody rb;
         private AudioSource audioSource;
         private PlayerAnimationController animController;
+        private PlayerHitFeedback hitFeedback;
         private InputAction moveLeftAction;
         private InputAction moveRightAction;
         private InputAction jumpAction;
         private InputAction jumpDownAction;
         private InputAction snapRealmAction;
         private float[] lanePositions;
+        private int lastLoggedLaneIndex = -1;
 
         public RealmState CurrentRealm => currentRealm;
         public bool IsTransitioning => isTransitioning;
+        public float CurrentHealth => currentHealth;
+        public float MaxHealth => maxHealth;
+        public bool IsDead => isDead;
+        public int CurrentLaneIndex => currentLaneIndex;
+        public float CurrentXPosition => transform.position.x;
 
         private void Awake()
         {
             rb = GetComponent<Rigidbody>();
             audioSource = GetComponent<AudioSource>();
             animController = GetComponent<PlayerAnimationController>();
+            hitFeedback = GetComponent<PlayerHitFeedback>();
 
             moveLeftAction = new InputAction(binding: "<Keyboard>/a");
             moveLeftAction.AddBinding("<Keyboard>/leftArrow");
@@ -105,6 +118,13 @@ namespace BossSnap.Player
                 lanePositions = ArenaManager.Instance.LanePositions;
                 targetXPosition = lanePositions[currentLaneIndex];
             }
+
+            currentHealth = maxHealth;
+            
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdatePlayerHealth(currentHealth, maxHealth);
+            }
         }
 
         private void ConfigureRigidbody()
@@ -124,6 +144,28 @@ namespace BossSnap.Player
                 Update2DMovement();
 
             ApplyGravityScale();
+            LogCurrentLane();
+        }
+
+        private void LogCurrentLane()
+        {
+            if (currentLaneIndex != lastLoggedLaneIndex)
+            {
+                string laneName = GetLaneName(currentLaneIndex);
+                Debug.Log($"Player is in: {laneName} (Lane Index: {currentLaneIndex}, Realm: {currentRealm})");
+                lastLoggedLaneIndex = currentLaneIndex;
+            }
+        }
+
+        private string GetLaneName(int laneIndex)
+        {
+            switch (laneIndex)
+            {
+                case 0: return "LaneMarkerLeft";
+                case 1: return "LaneMarkerCenter";
+                case 2: return "LaneMarkerRight";
+                default: return $"Unknown Lane {laneIndex}";
+            }
         }
 
         private void Update3DMovement()
@@ -234,8 +276,9 @@ namespace BossSnap.Player
         }
         public void SnapRealm()
         {
-
-            Debug.Log("Current Realm: " + currentRealm);
+            string laneName = GetLaneName(currentLaneIndex);
+            Debug.Log($"Realm Snap: {currentRealm} → {(currentRealm == RealmState.ThreeD ? "TwoD" : "ThreeD")} | Current Lane: {laneName} (Index: {currentLaneIndex})");
+            
             // Stop lane switching
             isTransitioning = false;
 
@@ -279,6 +322,52 @@ namespace BossSnap.Player
             {
                 CameraManager.Instance.SnapToRealm(currentRealm);
             }
-}
+        }
+
+        public void TakeDamage(float damage)
+        {
+            if (isDead) return;
+
+            currentHealth -= damage;
+            currentHealth = Mathf.Max(currentHealth, 0f);
+
+            Debug.Log($"Player took {damage} damage! Health: {currentHealth}/{maxHealth}");
+
+            if (hitFeedback != null)
+            {
+                hitFeedback.PlayHitFeedback();
+            }
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.UpdatePlayerHealth(currentHealth, maxHealth);
+            }
+
+            if (currentHealth <= 0f)
+            {
+                Die();
+            }
+        }
+
+        private void Die()
+        {
+            if (isDead) return;
+
+            isDead = true;
+            Debug.Log("Player defeated!");
+
+            moveLeftAction.Disable();
+            moveRightAction.Disable();
+            jumpAction.Disable();
+            jumpDownAction.Disable();
+            snapRealmAction.Disable();
+
+            rb.isKinematic = true;
+
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowDefeat();
+            }
+        }
     }
 }

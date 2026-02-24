@@ -10,6 +10,9 @@ namespace BossSnap.Boss
         [SerializeField] private float rotationSpeed = 500f;
         [SerializeField] private float destroyZ = -20f;
 
+        [Header("Damage")]
+        [SerializeField] private float damageAmount = 20f;
+
         [Header("Shake")]
         [SerializeField] private float impactShakeStrength = 0.2f;
         [SerializeField] private float impactShakeDuration = 0.15f;
@@ -53,6 +56,13 @@ namespace BossSnap.Boss
         {
             if (other.CompareTag("Player"))
             {
+                Player.PlayerController player = other.GetComponent<Player.PlayerController>();
+                if (player != null)
+                {
+                    player.TakeDamage(damageAmount);
+                    Debug.Log($"Stone hit player for {damageAmount} damage!");
+                }
+
                 if (hitClip != null)
                     AudioSource.PlayClipAtPoint(hitClip, transform.position);
 
