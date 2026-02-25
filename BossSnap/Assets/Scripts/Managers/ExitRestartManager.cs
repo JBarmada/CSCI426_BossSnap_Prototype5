@@ -22,7 +22,7 @@ public class ExitRestartManager : MonoBehaviour
     public void RestartGame()
     {
         Scene currentScene = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(currentScene.buildIndex);
+        SceneManager.LoadScene(currentScene.name);
         Time.timeScale = 1f;
     }
 

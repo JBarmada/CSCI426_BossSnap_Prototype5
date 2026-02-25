@@ -299,6 +299,9 @@ namespace BossSnap.Player
             string laneName = GetLaneName(currentLaneIndex);
             Debug.Log($"Realm Snap: {currentRealm} → {(currentRealm == RealmState.ThreeD ? "TwoD" : "ThreeD")} | Current Lane: {laneName} (Index: {currentLaneIndex})");
             
+            // Store whether we were transitioning
+            bool wasTransitioning = isTransitioning;
+            
             // Stop lane switching
             isTransitioning = false;
 
@@ -328,6 +331,13 @@ namespace BossSnap.Player
                     RigidbodyConstraints.FreezeRotationZ |
                     RigidbodyConstraints.FreezePositionX |
                     RigidbodyConstraints.FreezePositionZ;
+                
+                // If we were transitioning, snap to target lane AFTER freezing X
+                if (wasTransitioning)
+                {
+                    rb.position = new Vector3(targetXPosition, rb.position.y, rb.position.z);
+                    Debug.Log($"Snapped player to lane position X={targetXPosition} during realm transition");
+                }
             }
 
             // Play snap sound
