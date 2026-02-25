@@ -11,7 +11,7 @@ namespace BossSnap.Boss
         [SerializeField] private float destroyZ = -20f;
 
         [Header("Damage")]
-        [SerializeField] private float damageAmount = 20f;
+        [SerializeField] private float damageAmount = 1f;
 
         [Header("Shake")]
         [SerializeField] private float impactShakeStrength = 0.2f;
@@ -57,7 +57,7 @@ namespace BossSnap.Boss
             if (other.CompareTag("Player"))
             {
                 Player.PlayerController player = other.GetComponent<Player.PlayerController>();
-                if (player != null)
+                if (player != null && !player.IsInvulnerable)
                 {
                     player.TakeDamage(damageAmount);
                     Debug.Log($"Stone hit player for {damageAmount} damage!");

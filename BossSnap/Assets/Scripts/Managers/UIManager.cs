@@ -127,6 +127,12 @@ namespace BossSnap.Managers
             );
         }
 
+        public void LoadMainMenu()
+        {
+            Time.timeScale = 1f;
+            UnityEngine.SceneManagement.SceneManager.LoadScene("StartMenu");
+        }
+
         public void QuitGame()
         {
             #if UNITY_EDITOR

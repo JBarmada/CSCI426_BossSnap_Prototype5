@@ -60,7 +60,7 @@ namespace BossSnap.Boss
             if (other.CompareTag("Player"))
             {
                 Player.PlayerController player = other.GetComponent<Player.PlayerController>();
-                if (player != null)
+                if (player != null && !player.IsInvulnerable)
                 {
                     player.TakeDamage(damageAmount);
                     Debug.Log($"Falling stone hit player for {damageAmount} damage!");

@@ -26,10 +26,14 @@ namespace BossSnap.Player
         [SerializeField] private float jumpDownForce = 300f;
         [SerializeField] private float maxHeight = 8f;
         [SerializeField] private float gravityScale = 2f;
+        [SerializeField] private float invulnerabilityDuringJump = 0.3f;
+        
         [Header("Ground Detection")]
         [SerializeField] private float groundCheckDistance = 0.2f;
         [SerializeField] private LayerMask groundLayer = -1;
         private bool isGrounded = false;
+        private bool isInvulnerable = false;
+        private float invulnerabilityTimer = 0f;
 
 
         [Header("Audio")]
@@ -62,6 +66,7 @@ namespace BossSnap.Player
         public bool IsDead => isDead;
         public int CurrentLaneIndex => currentLaneIndex;
         public float CurrentXPosition => transform.position.x;
+        public bool IsInvulnerable => isInvulnerable;
 
         private void Awake()
         {
@@ -189,6 +194,15 @@ namespace BossSnap.Player
         private void Update2DMovement()
         {
             isGrounded = Physics.Raycast(transform.position, Vector3.down, groundCheckDistance, groundLayer);
+            
+            if (invulnerabilityTimer > 0f)
+            {
+                invulnerabilityTimer -= Time.deltaTime;
+                if (invulnerabilityTimer <= 0f)
+                {
+                    isInvulnerable = false;
+                }
+            }
 
             if (transform.position.y > maxHeight)
             {
@@ -258,6 +272,9 @@ namespace BossSnap.Player
                 rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
                 rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
                 animController?.TriggerJump();
+                
+                isInvulnerable = true;
+                invulnerabilityTimer = invulnerabilityDuringJump;
             }
         }
 
@@ -268,6 +285,9 @@ namespace BossSnap.Player
             {
                 rb.AddForce(Vector3.down * jumpDownForce, ForceMode.Impulse);
                 animController?.TriggerJump();
+                
+                isInvulnerable = true;
+                invulnerabilityTimer = invulnerabilityDuringJump * 0.5f;
             }
         }
         private void OnSnapRealm(InputAction.CallbackContext context)
@@ -326,7 +346,7 @@ namespace BossSnap.Player
 
         public void TakeDamage(float damage)
         {
-            if (isDead) return;
+            if (isDead || isInvulnerable) return;
 
             currentHealth -= damage;
             currentHealth = Mathf.Max(currentHealth, 0f);

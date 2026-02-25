@@ -21,17 +21,22 @@ namespace BossSnap.Boss
         [SerializeField] private GameObject rollingStonePrefab;
         [SerializeField] private Transform[] laneSpawnPoints;
 
-        [Header("Attack 2 - Falling Stones (2D Realm)")]
-        [SerializeField] private GameObject fallingRockPrefab;
-        [SerializeField] private Transform[] verticalSpawnPoints;
-        [SerializeField] private int attack2StonesPerSpawn = 3;
-        [SerializeField] private float verticalSpawnHeight = 10f;
+        [Header("Attack 2 - Mouth Rolling Stones (3D Realm)")]
+        [SerializeField] private Transform mouthSpawnPoint;
+        [SerializeField] private int attack2StonesPerLane = 1;
+        [SerializeField] private float attack2StoneSpacing = 0.3f;
+        [SerializeField] private float attack2StoneSpeed = 10f;
+        [SerializeField] private float attack2SpawnDelay = 1.5f;
+        
+        [Header("Laser Attack System")]
+        [SerializeField] private BossLaserAttackManager laserAttackManager;
         
         [SerializeField] private Animator animator;
 
         [Header("Audio")]
         [SerializeField] private AudioSource audioSource;
         [SerializeField] private AudioClip stompClip;
+        [SerializeField] private AudioClip mouthSnapClip;
 
         [Header("Screen Shake")]
         [SerializeField] private ScreenShake screenShake;
@@ -53,21 +58,27 @@ namespace BossSnap.Boss
         [SerializeField] private float attackInterval = 5f;
         [SerializeField] private float attackRandomVariance = 1.5f;
         [SerializeField] private bool autoAttack = true;
+        
+        [Header("Debug")]
+        [SerializeField] private bool debugForceAttack2Only = false;
 
         [Header("Difficulty Scaling")]
         [SerializeField] private bool enableDifficultyScaling = true;
         [SerializeField] private float minAttackInterval = 2f;
         [SerializeField] private int maxStonesPerSpawn = 3;
-        [SerializeField] private int maxAttack2Stones = 5;
+        
+        [Header("3D Attack Pattern")]
+        [SerializeField] private float patternSwitchTime = 30f;
 
         private float attackTimer;
         private float currentAttackCooldown;
+        private float elapsedTime;
+        private int attacksInCurrentCycle;
+        private bool useFirstPattern = true;
 
         private bool isAttacking;
-        private bool stompSoundPlayed;
         private int spawnEventsTriggered;
         private bool useAttack2Animation = false;
-        private bool isDoingAttack2 = false;
         private int targetLaneForAttack = -1;
 
         private static readonly int Attack1Trigger = Animator.StringToHash("Attack1");
@@ -83,6 +94,9 @@ namespace BossSnap.Boss
 
             if (player == null)
                 player = GameObject.FindGameObjectWithTag("Player")?.GetComponent<Player.PlayerController>();
+
+            if (laserAttackManager == null)
+                laserAttackManager = GetComponent<BossLaserAttackManager>();
 
             // Check if Attack2 parameter exists
             if (animator != null)
@@ -138,6 +152,15 @@ namespace BossSnap.Boss
                     OnTimerExpired();
                 }
             }
+            
+            elapsedTime += Time.deltaTime;
+            
+            if (elapsedTime >= patternSwitchTime && useFirstPattern)
+            {
+                useFirstPattern = false;
+                attacksInCurrentCycle = 0;
+                Debug.Log("Boss: Switched to pattern 1,1,2");
+            }
 
             if (!autoAttack) return;
 
@@ -154,13 +177,63 @@ namespace BossSnap.Boss
         {
             if (isAttacking) return;
 
+            if (debugForceAttack2Only)
+            {
+                Debug.Log("🔧 DEBUG: Forcing Attack2 (Mouth)");
+                StartAttack2();
+                return;
+            }
+
             if (player != null && player.CurrentRealm == Player.RealmState.TwoD)
             {
-                StartAttack2();
+                if (laserAttackManager != null && CameraManager.Instance != null)
+                {
+                    laserAttackManager.TriggerLaserAttack(player.CurrentRealm);
+                }
+                else
+                {
+                    StartAttack2();
+                }
             }
             else
             {
-                StartAttack1();
+                bool useAttack2 = ShouldUseAttack2For3D();
+                
+                if (useAttack2)
+                {
+                    Debug.Log("Boss 3D: Triggering Attack2 (Mouth)");
+                    StartAttack2();
+                }
+                else
+                {
+                    Debug.Log("Boss 3D: Triggering Attack1 (Stomp)");
+                    StartAttack1();
+                }
+                
+                attacksInCurrentCycle++;
+                
+                if (useFirstPattern)
+                {
+                    if (attacksInCurrentCycle >= 5)
+                        attacksInCurrentCycle = 0;
+                }
+                else
+                {
+                    if (attacksInCurrentCycle >= 3)
+                        attacksInCurrentCycle = 0;
+                }
+            }
+        }
+        
+        private bool ShouldUseAttack2For3D()
+        {
+            if (useFirstPattern)
+            {
+                return attacksInCurrentCycle == 4;
+            }
+            else
+            {
+                return attacksInCurrentCycle == 2;
             }
         }
 
@@ -190,24 +263,13 @@ namespace BossSnap.Boss
         {
             if (!enableDifficultyScaling || !useHealthAsTimer)
             {
-                return isAttack2 ? attack2StonesPerSpawn : stonesPerSpawn;
+                return stonesPerSpawn;
             }
 
             float timePercent = health / maxHealth;
             
-            // As time decreases, spawn more stones
-            // 100% time -> base amount
-            // 0% time -> max amount
-            if (isAttack2)
-            {
-                int stoneCount = Mathf.RoundToInt(Mathf.Lerp(maxAttack2Stones, attack2StonesPerSpawn, timePercent));
-                return Mathf.Clamp(stoneCount, attack2StonesPerSpawn, maxAttack2Stones);
-            }
-            else
-            {
-                int stoneCount = Mathf.RoundToInt(Mathf.Lerp(maxStonesPerSpawn, stonesPerSpawn, timePercent));
-                return Mathf.Clamp(stoneCount, stonesPerSpawn, maxStonesPerSpawn);
-            }
+            int stoneCount = Mathf.RoundToInt(Mathf.Lerp(maxStonesPerSpawn, stonesPerSpawn, timePercent));
+            return Mathf.Clamp(stoneCount, stonesPerSpawn, maxStonesPerSpawn);
         }
 
         public void StartAttack1()
@@ -215,82 +277,67 @@ namespace BossSnap.Boss
             if (isAttacking) return;
 
             isAttacking = true;
-            isDoingAttack2 = false;
-            stompSoundPlayed = false;
             spawnEventsTriggered = 0;
 
-            animator.SetTrigger(Attack1Trigger);
+            if (animator != null)
+                animator.SetTrigger(Attack1Trigger);
         }
 
         public void StartAttack2()
         {
             if (isAttacking) return;
-
+            
+            Debug.Log("🦕 ATTACK 2 TRIGGERED - Should see mouth snap!");
             isAttacking = true;
-            isDoingAttack2 = true;
-            stompSoundPlayed = false;
             spawnEventsTriggered = 0;
-
-            // Capture the player's lane at the START of the attack
-            if (player != null)
-            {
-                targetLaneForAttack = player.CurrentLaneIndex;
-                string laneName = GetLaneMarkerName(targetLaneForAttack);
-                Debug.Log($"⚔️ ATTACK2 STARTED: Player locked to {laneName} (Index: {targetLaneForAttack})");
-            }
-            else
-            {
-                targetLaneForAttack = 1; // Default to center if no player
-                Debug.LogWarning("Player reference null at attack start! Defaulting to center lane.");
-            }
 
             if (animator != null)
             {
                 if (useAttack2Animation)
                 {
+                    animator.ResetTrigger(Attack1Trigger);
                     animator.SetTrigger(Attack2Trigger);
                 }
                 else
                 {
-                    // Fallback: use Attack1 animation with Attack2 behavior
+                    Debug.LogWarning("Attack2 animation not set up! Using Attack1 animation. Please add Attack2 trigger and animation to Animator!");
                     animator.SetTrigger(Attack1Trigger);
                 }
             }
         }
+        
+        public void PlayStompAudio()
+        {
+            if (audioSource != null && stompClip != null)
+                audioSource.PlayOneShot(stompClip);
+        }
 
-        // 🔥 CALLED BY ANIMATION EVENT (can happen multiple times)
+        public void PlayMouthSnapAudio()
+        {
+            if (audioSource != null && mouthSnapClip != null)
+                audioSource.PlayOneShot(mouthSnapClip);
+        }
+
         public void SpawnStoneFromStomp()
         {
-            // Always shake (if you want shake per stomp)
             if (screenShake != null)
                 screenShake.Shake(spawnShakeStrength, spawnShakeDuration);
 
-            // 🔊 Play sound only once per attack
-            if (!stompSoundPlayed)
-            {
-                stompSoundPlayed = true;
-
-                if (stompClip != null && audioSource != null)
-                    audioSource.PlayOneShot(stompClip);
-            }
-
-            // 🪨 Only allow controlled number of spawn events
             if (spawnEventsTriggered >= maxSpawnEventsPerAttack)
                 return;
 
             spawnEventsTriggered++;
 
-            // Spawn appropriate stone type based on current attack
-            if (isDoingAttack2)
-            {
-                int count = GetCurrentStonesPerSpawn(true);
-                SpawnFallingStones(count);
-            }
-            else
-            {
-                int count = GetCurrentStonesPerSpawn(false);
-                SpawnRollingStones(count);
-            }
+            int count = GetCurrentStonesPerSpawn(false);
+            SpawnRollingStones(count);
+        }
+
+        public void SpawnMouthStones()
+        {
+            if (screenShake != null)
+                screenShake.Shake(spawnShakeStrength, spawnShakeDuration);
+
+            SpawnMouthRollingStones();
         }
 
         private void SpawnRollingStones(int stonesToSpawn)
@@ -338,58 +385,53 @@ namespace BossSnap.Boss
                 ball.SetMovementStats(baseStoneSpeed, baseAcceleration);
         }
 
-        public void SpawnFallingStoneFromStomp()
+        private void SpawnMouthRollingStones()
         {
-            if (screenShake != null)
-                screenShake.Shake(spawnShakeStrength, spawnShakeDuration);
-
-            if (!stompSoundPlayed)
+            if (laneSpawnPoints == null || laneSpawnPoints.Length == 0)
             {
-                stompSoundPlayed = true;
-
-                if (stompClip != null && audioSource != null)
-                    audioSource.PlayOneShot(stompClip);
+                Debug.LogWarning("No lane spawn points assigned for mouth attack!");
+                return;
             }
 
-            if (spawnEventsTriggered >= maxSpawnEventsPerAttack)
-                return;
+            if (mouthSpawnPoint == null)
+            {
+                Debug.LogWarning("No mouth spawn point assigned! Falling back to boss position.");
+            }
 
-            spawnEventsTriggered++;
+            Vector3 baseSpawnPos = mouthSpawnPoint != null ? mouthSpawnPoint.position : transform.position + Vector3.up * 2f;
 
-            SpawnFallingStones(attack2StonesPerSpawn);
+            for (int laneIndex = 0; laneIndex < laneSpawnPoints.Length; laneIndex++)
+            {
+                for (int stoneNum = 0; stoneNum < attack2StonesPerLane; stoneNum++)
+                {
+                    Vector3 targetLanePos = laneSpawnPoints[laneIndex].position;
+                    
+                    Vector3 spawnPos = baseSpawnPos;
+                    spawnPos.x = targetLanePos.x;
+                    spawnPos.z += stoneNum * attack2StoneSpacing;
+
+                    GameObject stone = Instantiate(
+                        rollingStonePrefab,
+                        spawnPos,
+                        Quaternion.identity
+                    );
+
+                    RollingStoneBall ball = stone.GetComponent<RollingStoneBall>();
+                    if (ball != null)
+                        ball.SetMovementStats(attack2StoneSpeed, baseAcceleration);
+                }
+            }
+
+            Debug.Log($"🦕 Mouth Attack: Spawned {attack2StonesPerLane} stones on each of {laneSpawnPoints.Length} lanes");
+        }
+
+        public void SpawnFallingStoneFromStomp()
+        {
+            SpawnStoneFromStomp();
         }
 
         private void SpawnFallingStones(int stonesToSpawn)
         {
-            if (verticalSpawnPoints == null || verticalSpawnPoints.Length == 0)
-            {
-                Debug.LogWarning("No vertical spawn points assigned! Falling back to random positions.");
-                SpawnRandomFallingStones(stonesToSpawn);
-                return;
-            }
-
-            // Use the lane that was captured when the attack started
-            int playerLaneIndex = targetLaneForAttack;
-            
-            // Ensure the lane index is valid for our spawn points
-            if (playerLaneIndex < 0 || playerLaneIndex >= verticalSpawnPoints.Length)
-            {
-                Debug.LogWarning($"Target lane index {playerLaneIndex} is out of range! Using center lane.");
-                playerLaneIndex = 1; // Default to center
-            }
-
-            // Get lane marker name for logging
-            string laneMarkerName = GetLaneMarkerName(playerLaneIndex);
-            string spawnPointName = verticalSpawnPoints[playerLaneIndex].name;
-            float spawnX = verticalSpawnPoints[playerLaneIndex].position.x;
-
-            // Spawn all stones at the player's lane
-            for (int i = 0; i < stonesToSpawn; i++)
-            {
-                SpawnFallingStone(playerLaneIndex);
-            }
-            
-            Debug.Log($"🎯 Boss Attack: Spawning {stonesToSpawn} falling stones at {laneMarkerName} (Index: {playerLaneIndex}, Spawn: {spawnPointName}, X: {spawnX})");
         }
 
         private string GetLaneMarkerName(int laneIndex)
@@ -405,48 +447,10 @@ namespace BossSnap.Boss
 
         private void SpawnFallingStone(int pointIndex)
         {
-            Vector3 spawnPos = verticalSpawnPoints[pointIndex].position;
-            spawnPos.y = verticalSpawnHeight;
-
-            GameObject prefabToUse = fallingRockPrefab != null ? fallingRockPrefab : rollingStonePrefab;
-
-            GameObject stone = Instantiate(
-                prefabToUse,
-                spawnPos,
-                Quaternion.identity
-            );
-
-            Debug.Log($"  ⚫ Spawned stone at {verticalSpawnPoints[pointIndex].name} (X: {spawnPos.x}, Y: {spawnPos.y})");
-
-            FallingRock fallingRock = stone.GetComponent<FallingRock>();
-            if (fallingRock != null)
-            {
-                fallingRock.Initialize(baseStoneSpeed);
-            }
         }
 
         private void SpawnRandomFallingStones(int stonesToSpawn)
         {
-            for (int i = 0; i < stonesToSpawn; i++)
-            {
-                float randomX = Random.Range(-4f, 4f);
-                float randomZ = Random.Range(10f, 20f);
-                Vector3 spawnPos = new Vector3(randomX, verticalSpawnHeight, randomZ);
-
-                GameObject prefabToUse = fallingRockPrefab != null ? fallingRockPrefab : rollingStonePrefab;
-
-                GameObject stone = Instantiate(
-                    prefabToUse,
-                    spawnPos,
-                    Quaternion.identity
-                );
-
-                FallingRock fallingRock = stone.GetComponent<FallingRock>();
-                if (fallingRock != null)
-                {
-                    fallingRock.Initialize(baseStoneSpeed);
-                }
-            }
         }
 
         public void OnAttackFinished()
